@@ -16,7 +16,7 @@
 #import "QTouchposeApplication.h"
 #import <QuartzCore/QuartzCore.h>
 
-#import <objc/runtime.h> 
+#import <objc/runtime.h>
 
 
 @interface QTouchposeApplication ()
@@ -38,12 +38,7 @@
 /// The QTouchposeFingerView is used to render a finger touches on the screen.
 @interface QTouchposeFingerView : UIView
 
-- (id)initWithPoint:(CGPoint)point
-              color:(UIColor *)color
-touchEndAnimationDuration:(NSTimeInterval)touchEndAnimationDuration
-  touchEndTransform:(CATransform3D)touchEndTransform
-   customTouchImage:(UIImage *)customTouchImage
-   customTouchPoint:(CGPoint)customtouchPoint;
+- (id)initWithPoint:(CGPoint)point color:(UIColor *)color touchEndAnimationDuration:(NSTimeInterval)touchEndAnimationDuration touchEndTransform:(CATransform3D)touchEndTransform;
 
 @end
 
@@ -74,49 +69,22 @@ touchEndAnimationDuration:(NSTimeInterval)touchEndAnimationDuration
 
 #pragma mark - QTouchposeFingerView
 
-- (id)initWithPoint:(CGPoint)point
-              color:(UIColor *)color
-touchEndAnimationDuration:(NSTimeInterval)touchEndAnimationDuration
-  touchEndTransform:(CATransform3D)touchEndTransform
-   customTouchImage:(UIImage *)customTouchImage
-   customTouchPoint:(CGPoint)customtouchPoint
-
+- (id)initWithPoint:(CGPoint)point color:(UIColor *)color touchEndAnimationDuration:(NSTimeInterval)touchEndAnimationDuration touchEndTransform:(CATransform3D)touchEndTransform
 {
-    if (customTouchImage)
-    {        
-        CGRect frame = CGRectMake(point.x - customtouchPoint.x,
-                                  point.y - customtouchPoint.y,
-                                  customTouchImage.size.width,
-                                  customTouchImage.size.height);
-        
-        if (self = [super initWithFrame:frame])
-        {
-            self.opaque = NO;
-            
-            UIImageView *iv = [[UIImageView alloc] initWithImage:customTouchImage];
-            [self addSubview:iv];
-        }
-        
-        return self;
-    }
-    else
+    const CGFloat kFingerRadius = 22.0f;
+    
+    if ((self = [super initWithFrame:CGRectMake(point.x-kFingerRadius, point.y-kFingerRadius, 2*kFingerRadius, 2*kFingerRadius)]))
     {
-        const CGFloat kFingerRadius = 22.0f;
+        self.opaque = NO;
+        self.layer.borderColor = [color colorWithAlphaComponent:0.6f].CGColor;
+        self.layer.cornerRadius = kFingerRadius;
+        self.layer.borderWidth = 2.0f;
+        self.layer.backgroundColor = [color colorWithAlphaComponent:0.4f].CGColor;
         
-        if ((self = [super initWithFrame:CGRectMake(point.x-kFingerRadius, point.y-kFingerRadius, 2*kFingerRadius, 2*kFingerRadius)]))
-        {
-            self.opaque = NO;
-            self.layer.borderColor = [color colorWithAlphaComponent:0.6f].CGColor;
-            self.layer.cornerRadius = kFingerRadius;
-            self.layer.borderWidth = 2.0f;
-            self.layer.backgroundColor = [color colorWithAlphaComponent:0.4f].CGColor;
-
-            _touchEndAnimationDuration = touchEndAnimationDuration;
-            _touchEndTransform = touchEndTransform;
-        }
-        
-        return self;
+        _touchEndAnimationDuration = touchEndAnimationDuration;
+        _touchEndTransform = touchEndTransform;
     }
+    return self;
 }
 
 @end
@@ -183,16 +151,13 @@ static void UIWindow_new_didAddSubview(UIWindow *window, SEL _cmd, UIView *view)
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(applicationDidFinishLaunching:) name:UIApplicationDidFinishLaunchingNotification object:nil];
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(screenDidConnectNotification:) name:UIScreenDidConnectNotification object:nil];
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(screenDidDisonnectNotification:) name:UIScreenDidDisconnectNotification object:nil];
-        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardDidShowNotification:) name:UIKeyboardDidShowNotification object:nil];        
-        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardDidHideNotification:) name:UIKeyboardDidHideNotification object:nil];        
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardDidShowNotification:) name:UIKeyboardDidShowNotification object:nil];
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardDidHideNotification:) name:UIKeyboardDidHideNotification object:nil];
         _touchDictionary = CFDictionaryCreateMutable(NULL, 10, NULL, NULL);
         _alwaysShowTouches = NO;
-        _touchColor = [UIColor colorWithRed:0.251f green:0.424f blue:0.502f alpha:1.0f];
+        _touchColor = [UIColor colorWithRed:1.0f green:1.0f blue:1.0f alpha:1.0f];
         _touchEndAnimationDuration = 0.5f;
         _touchEndTransform = CATransform3DMakeScale(1.5, 1.5, 1);
-        
-        _customTouchImage = nil;
-        _customTouchPoint = CGPointZero;
         
         // In my experience, the keyboard performance is crippled when showing touches on a
         // device running iOS < 5, so by default, disable touches when the keyboard is
@@ -229,7 +194,7 @@ static void UIWindow_new_didAddSubview(UIWindow *window, SEL _cmd, UIView *view)
     for (CFIndex i = 0; i < count; ++i)
     {
         UITouch *touch = (__bridge UITouch *)keys[i];
-
+        
         if (activeTouches == nil || ![activeTouches containsObject:touch])
         {
             UIView *view = (__bridge UIView *)values[i];
@@ -257,7 +222,7 @@ static void UIWindow_new_didAddSubview(UIWindow *window, SEL _cmd, UIView *view)
             
             if (fingerView != NULL)
             {
-                // Remove the touch from the 
+                // Remove the touch from the
                 CFDictionaryRemoveValue(_touchDictionary, (__bridge const void *)(touch));
                 [fingerView removeFromSuperview];
             }
@@ -266,33 +231,17 @@ static void UIWindow_new_didAddSubview(UIWindow *window, SEL _cmd, UIView *view)
         {
             if (fingerView == NULL)
             {
-                fingerView = [[QTouchposeFingerView alloc] initWithPoint:point
-                                                                   color:_touchColor
-                                               touchEndAnimationDuration:_touchEndAnimationDuration
-                                                       touchEndTransform:_touchEndTransform
-                                                        customTouchImage:self.customTouchImage
-                                                        customTouchPoint:self.customTouchPoint];
+                fingerView = [[QTouchposeFingerView alloc] initWithPoint:point color:_touchColor touchEndAnimationDuration:_touchEndAnimationDuration touchEndTransform:_touchEndTransform];
                 [_touchView addSubview:fingerView];
                 CFDictionarySetValue(_touchDictionary, (__bridge const void *)(touch), (__bridge const void *)(fingerView));
             }
             else
             {
-                if (self.customTouchImage)
-                {
-                    CGPoint newCenter = point;
-                    newCenter.x += (self.customTouchImage.size.width / 2) - self.customTouchPoint.x;
-                    newCenter.y += (self.customTouchImage.size.height / 2) - self.customTouchPoint.y;
-
-                    fingerView.center = newCenter;
-                }
-                else
-                {
-                    fingerView.center = point;
-                }
+                fingerView.center = point;
             }
         }
     }
-
+    
     [self removeTouchesActiveTouches:touches];
 }
 
@@ -302,7 +251,7 @@ static void UIWindow_new_didAddSubview(UIWindow *window, SEL _cmd, UIView *view)
     // overlay view QTouchposeTouchesView and ensure it remains the top-most window.
     UIWindow_orig_didAddSubview = (void (*)(UIWindow *, SEL, UIView *))SwizzleMethod([UIWindow class], @selector(didAddSubview:), (IMP)UIWindow_new_didAddSubview);
     UIWindow_orig_becomeKeyWindow = (void (*)(UIWindow *, SEL))SwizzleMethod([UIWindow class], @selector(becomeKeyWindow), (IMP)UIWindow_new_becomeKeyWindow);
-
+    
     self.showTouches = _alwaysShowTouches || [self hasMirroredScreen];
 }
 
@@ -342,7 +291,7 @@ static void UIWindow_new_didAddSubview(UIWindow *window, SEL _cmd, UIView *view)
 {
     BOOL hasMirroredScreen = NO;
     NSArray *screens = [UIScreen screens];
-
+    
     if ([screens count] > 1)
     {
         for (UIScreen *screen in screens)
